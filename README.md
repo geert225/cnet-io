@@ -24,9 +24,9 @@
 - [ ] servo / pwm optical isolated outputs (min 2x)
 
 #### firmware:
-- [ ] make files and linker scripts ![](https://img.shields.io/badge/active-6488ea) 
-- [ ] basic boot setup
-- [ ] io control
+- [x] make files and linker scripts 
+- [ ] basic boot setup ![](https://img.shields.io/badge/active-6488ea) 
+- [ ] io control ![](https://img.shields.io/badge/active-6488ea) 
 - [ ] Uart control
 - [ ] ethernet control
 - [ ] Profibus protocol
