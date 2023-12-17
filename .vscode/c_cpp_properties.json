@@ -5,6 +5,10 @@
       "includePath": [
         "${workspaceFolder}/**"
       ],
+      "defines": [
+        "STM32F4",
+        "__ARM_ARCH_7EM__"
+      ],
       "compilerPath": "C:/MinGW/bin/gcc.exe",
       "cStandard": "${default}",
       "cppStandard": "${default}",
