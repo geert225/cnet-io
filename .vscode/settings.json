@@ -63,6 +63,8 @@
     "commen-def.h": "c",
     "vector.h": "c",
     "systick.h": "c",
-    "rcc.h": "c"
+    "rcc.h": "c",
+    "system.h": "c",
+    "boardio.h": "c"
   }
 }

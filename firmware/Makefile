@@ -1,180 +1,144 @@
 # Be silent per default, but 'make V=1' will show all compiler calls.
-#ifneq ($(V),1)
-#Q		:= @
-#NULL		:= 2>/dev/null
-#endif
+ifneq ($(V),1)
+Q := @
+# Do not print "Entering directory ...".
+MAKEFLAGS += --no-print-directory
+endif
 
-SRC_DIR							= src
-INC_DIR							= inc
-OPENCM3_DIR						= libs/libopencm3
+OPENCM3_DIR := inc/libopencm3
+FREERTOS_DIR := inc/FreeRTOS
 
-BINARY = firmware
+OBJ_DIR = obj
+BIN_DIR = bin
+SRC_DIR = src
 
-###############################################################################
-# Basic Device Setup
+# all the files will be generated with this name (main.elf, main.bin, main.hex, etc)
+PROJECT_NAME=main
 
-LIBNAME			= opencm3_stm32f4
-DEFS				+= -DSTM32F4
-FP_FLAGS		?= -mfloat-abi=hard -mfpu=fpv4-sp-d16
+SRC_FILES := $(wildcard $(SRC_DIR)/*.c)
+
+SRC_FILES += $(FREERTOS_DIR)/tasks.c
+SRC_FILES += $(FREERTOS_DIR)/list.c
+SRC_FILES += $(FREERTOS_DIR)/queue.c
+SRC_FILES += $(FREERTOS_DIR)/timers.c
+SRC_FILES += $(FREERTOS_DIR)/portable/GCC/ARM_CM4F/port.c
+SRC_FILES += $(FREERTOS_DIR)/portable/MemMang/heap_4.c
+
+INCLUDES  = -I$(realpath config)
+INCLUDES += -I$(realpath src)
+INCLUDES += -I$(OPENCM3_DIR)/include
+INCLUDES += -I$(FREERTOS_DIR)/include
+INCLUDES += -I$(FREERTOS_DIR)/portable/GCC/ARM_CM4F
+
+OBJECTS = $(addprefix $(OBJ_DIR)/, $(SRC_FILES:.c=.o))
+
+# Linker script for our MCU
+LDSCRIPT = linker.ld
+
+# Using the stm32f4 series chip
+TARGETS		:= stm32/f7
+LIBNAME		= opencm3_stm32f7
+DEFS		+= -DSTM32F7
+
+# Target-specific flags
+FP_FLAGS	?= -mfloat-abi=hard -mfpu=fpv4-sp-d16
 ARCH_FLAGS	= -mthumb -mcpu=cortex-m4 $(FP_FLAGS)
 
-###############################################################################
-# Linkerscript
+# Compiler configuration
+PREFIX		?= arm-none-eabi
 
-LDSCRIPT = linkerscript.ld
-LDLIBS		+= -l$(LIBNAME)
-LDFLAGS		+= -L$(OPENCM3_DIR)/lib
-
-###############################################################################
-# Includes
-
-DEFS		+= -I$(OPENCM3_DIR)/include
-DEFS		+= -I$(INC_DIR)
-
-###############################################################################
-# Executables
-
-PREFIX		?= arm-none-eabi-
-
-CC		:= $(PREFIX)gcc
-CXX		:= $(PREFIX)g++
-LD		:= $(PREFIX)gcc
-AR		:= $(PREFIX)ar
-AS		:= $(PREFIX)as
-OBJCOPY		:= $(PREFIX)objcopy
-OBJDUMP		:= $(PREFIX)objdump
-GDB		:= $(PREFIX)gdb
-STFLASH		= $(shell which st-flash)
+CC		:= $(PREFIX)-gcc
+CXX		:= $(PREFIX)-g++
+LD		:= $(PREFIX)-gcc
+AR		:= $(PREFIX)-ar
+AS		:= $(PREFIX)-as
+SIZE	:= $(PREFIX)-size
+OBJCOPY	:= $(PREFIX)-objcopy
+OBJDUMP	:= $(PREFIX)-objdump
+GDB		:= $(PREFIX)-gdb
+STFLASH	 = $(shell which st-flash)
 OPT		:= -Os
-DEBUG		:= -ggdb3
-CSTD		?= -std=c99
+DEBUG	:= -ggdb3
+CSTD	?= -std=c99
 
-
-###############################################################################
-# Source files
-
-OBJS		+= $(SRC_DIR)/$(BINARY).o
-OBJS		+= $(SRC_DIR)/core/system.o
-OBJS		+= $(SRC_DIR)/core/boardio.o
-
-###############################################################################
 # C flags
-
 TGT_CFLAGS	+= $(OPT) $(CSTD) $(DEBUG)
 TGT_CFLAGS	+= $(ARCH_FLAGS)
 TGT_CFLAGS	+= -Wextra -Wshadow -Wimplicit-function-declaration
 TGT_CFLAGS	+= -Wredundant-decls -Wmissing-prototypes -Wstrict-prototypes
 TGT_CFLAGS	+= -fno-common -ffunction-sections -fdata-sections
 
-###############################################################################
-# C++ flags
-
-TGT_CXXFLAGS	+= $(OPT) $(CXXSTD) $(DEBUG)
-TGT_CXXFLAGS	+= $(ARCH_FLAGS)
-TGT_CXXFLAGS	+= -Wextra -Wshadow -Wredundant-decls  -Weffc++
-TGT_CXXFLAGS	+= -fno-common -ffunction-sections -fdata-sections
-
-###############################################################################
 # C & C++ preprocessor common flags
-
 TGT_CPPFLAGS	+= -MD
 TGT_CPPFLAGS	+= -Wall -Wundef
 TGT_CPPFLAGS	+= $(DEFS)
 
-###############################################################################
 # Linker flags
-
 TGT_LDFLAGS		+= --static -nostartfiles
 TGT_LDFLAGS		+= -T$(LDSCRIPT)
 TGT_LDFLAGS		+= $(ARCH_FLAGS) $(DEBUG)
-TGT_LDFLAGS		+= -Wl,-Map=$(*).map -Wl,--cref
+TGT_LDFLAGS		+= -Wl,-Map=$(BIN_DIR)/$(*).map -Wl,--cref
 TGT_LDFLAGS		+= -Wl,--gc-sections
-ifeq ($(V),99)
+ifeq ($(V),1)
 TGT_LDFLAGS		+= -Wl,--print-gc-sections
 endif
 
-###############################################################################
 # Used libraries
-
+DEFS		+= $(INCLUDES)
+LDFLAGS		+= -L$(OPENCM3_DIR)/lib
+LDLIBS		+= -l$(LIBNAME)
 LDLIBS		+= -Wl,--start-group -lc -lgcc -lnosys -Wl,--end-group
 
-###############################################################################
-###############################################################################
-###############################################################################
+all: libopencm3 freertos $(BIN_DIR)/$(PROJECT_NAME).bin
 
-.SUFFIXES: .elf .bin .hex .srec .list .map .images
-.SECONDEXPANSION:
-.SECONDARY:
+libopencm3:
+	$(Q)if [ ! "`ls -A $(OPENCM3_DIR)`" ] ; then \
+		printf "#===========# ERROR #===========#\n"; \
+		printf "  libopencm3 is not initialized\n"; \
+		printf "  Please run:\n"; \
+		printf "    $$ git submodule init\n"; \
+		printf "    $$ git submodule update\n"; \
+		printf "  before running make.\n"; \
+		printf "#===========# ERROR #===========#\n"; \
+		exit 1; \
+		fi
+	$(Q)$(MAKE) -C $(OPENCM3_DIR) TARGETS=$(TARGETS)
 
-all: elf bin
+freertos:
+	$(Q)if [ ! "`ls -A $(FREERTOS_DIR)`" ] ; then \
+		printf "#===========# ERROR #===========#\n"; \
+		printf "  FreeRTOS is not initialized\n"; \
+		printf "  Please run:\n"; \
+		printf "    $$ git submodule init\n"; \
+		printf "    $$ git submodule update\n"; \
+		printf "  before running make.\n"; \
+		printf "#===========# ERROR #===========#\n"; \
+		exit 1; \
+		fi
 
-elf: $(BINARY).elf
-bin: $(BINARY).bin
-hex: $(BINARY).hex
-srec: $(BINARY).srec
-list: $(BINARY).list
-GENERATED_BINARIES=$(BINARY).elf $(BINARY).bin $(BINARY).hex $(BINARY).srec $(BINARY).list $(BINARY).map
+$(BIN_DIR)/%.bin: $(BIN_DIR)/%.elf
+	@printf "  OBJCOPY\t$@\n"
+	$(Q)$(OBJCOPY) -Obinary $< $@
 
-images: $(BINARY).images
-flash: $(BINARY).flash
+$(BIN_DIR)/%.elf: $(OBJECTS) $(LDSCRIPT)
+	@printf "  LD\t$@\n"
+	@mkdir -p $(dir $@)
+	$(Q)$(LD) $(TGT_LDFLAGS) $(LDFLAGS) $(OBJECTS) $(LDLIBS) -o $@
 
-$(OPENCM3_DIR)/lib/lib$(LIBNAME).a:
-ifeq (,$(wildcard $@))
-	$(warning $(LIBNAME).a not found, attempting to rebuild in $(OPENCM3_DIR))
-	$(MAKE) -C $(OPENCM3_DIR)
-endif
-
-# Define a helper macro for debugging make errors online
-# you can type "make print-OPENCM3_DIR" and it will show you
-# how that ended up being resolved by all of the included
-# makefiles.
-print-%:
-	@echo $*=$($*)
-
-%.images: %.bin %.hex %.srec %.list %.map
-	@#printf "*** $* images generated ***\n"
-
-%.bin: %.elf
-	@#printf "  OBJCOPY $(*).bin\n"
-	$(Q)$(OBJCOPY) -Obinary $(*).elf $(*).bin
-
-%.hex: %.elf
-	@#printf "  OBJCOPY $(*).hex\n"
-	$(Q)$(OBJCOPY) -Oihex $(*).elf $(*).hex
-
-%.srec: %.elf
-	@#printf "  OBJCOPY $(*).srec\n"
-	$(Q)$(OBJCOPY) -Osrec $(*).elf $(*).srec
-
-%.list: %.elf
-	@#printf "  OBJDUMP $(*).list\n"
-	$(Q)$(OBJDUMP) -S $(*).elf > $(*).list
-
-%.elf %.map: $(OBJS) $(LDSCRIPT) $(OPENCM3_DIR)/lib/lib$(LIBNAME).a Makefile
-	@#printf "  LD      $(*).elf\n"
-	$(Q)$(LD) $(TGT_LDFLAGS) $(LDFLAGS) $(OBJS) $(LDLIBS) -o $(*).elf
-
-%.o: %.c
-	@#printf "  CC      $(*).c\n"
-	$(Q)$(CC) $(TGT_CFLAGS) $(CFLAGS) $(TGT_CPPFLAGS) $(CPPFLAGS) -o $(*).o -c $(*).c
-
-%.o: %.S
-	@#printf "  CC      $(*).S\n"
-	$(Q)$(CC) $(TGT_CFLAGS) $(CFLAGS) -o $(*).o -c $(*).S
-
-%.o: %.cxx
-	@#printf "  CXX     $(*).cxx\n"
-	$(Q)$(CXX) $(TGT_CXXFLAGS) $(CXXFLAGS) $(TGT_CPPFLAGS) $(CPPFLAGS) -o $(*).o -c $(*).cxx
-
-%.o: %.cpp
-	@#printf "  CXX     $(*).cpp\n"
-	$(Q)$(CXX) $(TGT_CXXFLAGS) $(CXXFLAGS) $(TGT_CPPFLAGS) $(CPPFLAGS) -o $(*).o -c $(*).cpp
+$(OBJ_DIR)/%.o: %.c
+	@printf "  CC\t$<\n"
+	@mkdir -p $(dir $@)
+	$(Q)$(CC) $(TGT_CFLAGS) $(CFLAGS) $(TGT_CPPFLAGS) $(CPPFLAGS) -c $< -o $@
 
 clean:
-	@#printf "  CLEAN\n"
-	$(Q)$(RM) $(GENERATED_BINARIES) generated.* $(OBJS) $(OBJS:%.o=%.d)
+	@printf "  CLEAN\tbin\n"
+	$(Q)rm -Rf bin/*
+	@printf "  CLEAN\tobj\n"
+	$(Q)rm -Rf obj/*
 
+flash: $(BIN_DIR)/$(PROJECT_NAME).bin
+	@printf "  FLASH\t$<\n"
+	$(Q)$(STFLASH) --reset write $(BIN_DIR)/$(PROJECT_NAME).bin 0x08000000
 
-.PHONY: images clean elf bin hex srec list
-
--include $(OBJS:.o=.d)
+.PHONY: all libopencm3 freertos clean flash
+.SECONDARY: $(OBJECTS) $(BIN_DIR)/$(PROJECT_NAME).elf

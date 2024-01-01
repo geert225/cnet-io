@@ -2,7 +2,7 @@
  
 
 ## what is this project?
- this project is all about the learning procces of how to build firmware for 32 bit micro controllers and trying to understand how industrial communication protocols work. For this board i have chosen a stm 32 Fxxx micro controller and the following protocols: Profibus, Profinet and Fanuc i/o link. The end goal is that i have a board that is to be able to be controlled by a plc or a robot controller.
+ this project is all about the learning procces of how to build firmware for 32 bit micro controllers and trying to understand how industrial communication protocols work. For this board i have chosen a stm 32 F217VET6 micro controller and the following protocols: Profibus, Profinet and Fanuc i/o link. The end goal is that i have a board that is to be able to be controlled by a plc or a robot controller.
 
 ## project status
 
@@ -14,14 +14,14 @@
 
 ## todo list
 #### board:
-- [ ] choose controller (stm 32) ![](https://img.shields.io/badge/active-6488ea) 
-- [ ] ethernet (spi? phy? integrated?) ![](https://img.shields.io/badge/active-6488ea) 
+- [X] choose controller (stm 32)
+- [X] ethernet (spi? phy? integrated?) 
 - [ ] Uart to rs485 2x
-- [ ] power -> 3.3v, 3.3va, 5v, 12v, 24v(input)
-- [ ] optical isolated inputs (min 4x)
-- [ ] relay outputs (min 2x)
-- [ ] neo pixel (ws2811, ws2812) outputs (min 4x)
-- [ ] servo / pwm optical isolated outputs (min 2x)
+- [ ] power -> 3.3v, 3.3va, 5v, 12v, 24v(input) ![](https://img.shields.io/badge/active-6488ea) 
+- [ ] optical isolated inputs (min 4x) ![](https://img.shields.io/badge/active-6488ea) 
+- [ ] relay outputs (min 2x) ![](https://img.shields.io/badge/active-6488ea) 
+- [ ] neo pixel (ws2811, ws2812) outputs (min 4x) ![](https://img.shields.io/badge/active-6488ea) 
+- [ ] servo / pwm optical isolated outputs (min 2x) ![](https://img.shields.io/badge/active-6488ea) 
 
 #### firmware:
 - [x] make files and linker scripts 
