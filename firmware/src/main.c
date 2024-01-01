@@ -20,10 +20,10 @@ static void task2(void *args __attribute((unused))) {
 
 int main(void)
 {
-	rcc_clock_setup_pll(&rcc_hse_8mhz_3v3[RCC_CLOCK_3V3_168MHZ]);
+	//rcc_clock_setup_pll(&rcc_hse_8mhz_3v3[RCC_CLOCK_3V3_168MHZ]);
 
-    rcc_periph_clock_enable(RCC_GPIOD);
-    gpio_mode_setup(GPIOD, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, GPIO12 | GPIO13);
+    //rcc_periph_clock_enable(RCC_GPIOD);
+    //gpio_mode_setup(GPIOD, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, GPIO12 | GPIO13);
 
     xTaskCreate(task1,"LED1",100,NULL,configMAX_PRIORITIES-1,NULL);
 	xTaskCreate(task2,"LED2",100,NULL,configMAX_PRIORITIES-1,NULL);

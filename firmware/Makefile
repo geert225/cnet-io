@@ -21,14 +21,14 @@ SRC_FILES += $(FREERTOS_DIR)/tasks.c
 SRC_FILES += $(FREERTOS_DIR)/list.c
 SRC_FILES += $(FREERTOS_DIR)/queue.c
 SRC_FILES += $(FREERTOS_DIR)/timers.c
-SRC_FILES += $(FREERTOS_DIR)/portable/GCC/ARM_CM4F/port.c
+SRC_FILES += $(FREERTOS_DIR)/portable/GCC/ARM_CM7/r0p1/port.c
 SRC_FILES += $(FREERTOS_DIR)/portable/MemMang/heap_4.c
 
 INCLUDES  = -I$(realpath config)
 INCLUDES += -I$(realpath src)
 INCLUDES += -I$(OPENCM3_DIR)/include
 INCLUDES += -I$(FREERTOS_DIR)/include
-INCLUDES += -I$(FREERTOS_DIR)/portable/GCC/ARM_CM4F
+INCLUDES += -I$(FREERTOS_DIR)/portable/GCC/ARM_CM7/r0p1
 
 OBJECTS = $(addprefix $(OBJ_DIR)/, $(SRC_FILES:.c=.o))
 
@@ -42,7 +42,7 @@ DEFS		+= -DSTM32F7
 
 # Target-specific flags
 FP_FLAGS	?= -mfloat-abi=hard -mfpu=fpv4-sp-d16
-ARCH_FLAGS	= -mthumb -mcpu=cortex-m4 $(FP_FLAGS)
+ARCH_FLAGS	= -mthumb -mcpu=cortex-m7 $(FP_FLAGS)
 
 # Compiler configuration
 PREFIX		?= arm-none-eabi
