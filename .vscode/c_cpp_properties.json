@@ -6,7 +6,7 @@
         "${workspaceFolder}/**"
       ],
       "defines": [
-        "STM32F7",
+        "STM32F4",
         "__ARM_ARCH_7EM__"
       ],
       "compilerPath": "C:/MinGW/bin/gcc.exe",

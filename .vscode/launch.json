@@ -2,6 +2,18 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "ST-Link: Debug Bootloader",
+      "cwd": "${workspaceFolder}/src",
+      "executable": "./main.elf",
+      "servertype": "stutil",
+      "request": "launch",
+      "type": "cortex-debug",
+      "device": "STM32F439ZI",
+      "runToEntryPoint": "main",
+      "interface": "swd",
+      "preLaunchTask": "build_firmware"
+    },
+    {
       "name": "C/C++ Runner: Debug Session",
       "type": "cppdbg",
       "request": "launch",

@@ -16,19 +16,20 @@ SRC_DIR = src
 PROJECT_NAME=main
 
 SRC_FILES := $(wildcard $(SRC_DIR)/*.c)
+SRC_FILES += $(wildcard $(SRC_DIR)/**/*.c)
 
-SRC_FILES += $(FREERTOS_DIR)/tasks.c
-SRC_FILES += $(FREERTOS_DIR)/list.c
-SRC_FILES += $(FREERTOS_DIR)/queue.c
-SRC_FILES += $(FREERTOS_DIR)/timers.c
-SRC_FILES += $(FREERTOS_DIR)/portable/GCC/ARM_CM7/r0p1/port.c
-SRC_FILES += $(FREERTOS_DIR)/portable/MemMang/heap_4.c
+#SRC_FILES += $(FREERTOS_DIR)/tasks.c
+#SRC_FILES += $(FREERTOS_DIR)/list.c
+#SRC_FILES += $(FREERTOS_DIR)/queue.c
+#SRC_FILES += $(FREERTOS_DIR)/timers.c
+#SRC_FILES += $(FREERTOS_DIR)/portable/GCC/ARM_CM4_MPU/port.c
+#SRC_FILES += $(FREERTOS_DIR)/portable/MemMang/heap_4.c
 
 INCLUDES  = -I$(realpath config)
 INCLUDES += -I$(realpath src)
 INCLUDES += -I$(OPENCM3_DIR)/include
-INCLUDES += -I$(FREERTOS_DIR)/include
-INCLUDES += -I$(FREERTOS_DIR)/portable/GCC/ARM_CM7/r0p1
+#INCLUDES += -I$(FREERTOS_DIR)/include
+#INCLUDES += -I$(FREERTOS_DIR)/portable/GCC/ARM_CM4_MPU
 
 OBJECTS = $(addprefix $(OBJ_DIR)/, $(SRC_FILES:.c=.o))
 
@@ -36,13 +37,13 @@ OBJECTS = $(addprefix $(OBJ_DIR)/, $(SRC_FILES:.c=.o))
 LDSCRIPT = linker.ld
 
 # Using the stm32f4 series chip
-TARGETS		:= stm32/f7
-LIBNAME		= opencm3_stm32f7
-DEFS		+= -DSTM32F7
+TARGETS		:= stm32/f4
+LIBNAME		= opencm3_stm32f4
+DEFS		+= -DSTM32F4
 
 # Target-specific flags
 FP_FLAGS	?= -mfloat-abi=hard -mfpu=fpv4-sp-d16
-ARCH_FLAGS	= -mthumb -mcpu=cortex-m7 $(FP_FLAGS)
+ARCH_FLAGS	= -mthumb -mcpu=cortex-m4 $(FP_FLAGS)
 
 # Compiler configuration
 PREFIX		?= arm-none-eabi
@@ -138,7 +139,8 @@ clean:
 
 flash: $(BIN_DIR)/$(PROJECT_NAME).bin
 	@printf "  FLASH\t$<\n"
-	$(Q)$(STFLASH) --reset write $(BIN_DIR)/$(PROJECT_NAME).bin 0x08000000
+	st-flash --reset write $(BIN_DIR)/$(PROJECT_NAME).bin 0x08000000
+
 
 .PHONY: all libopencm3 freertos clean flash
 .SECONDARY: $(OBJECTS) $(BIN_DIR)/$(PROJECT_NAME).elf
