@@ -17,6 +17,11 @@ PROJECT_NAME=main
 
 SRC_FILES := $(wildcard $(SRC_DIR)/*.c)
 SRC_FILES += $(wildcard $(SRC_DIR)/**/*.c)
+SRC_FILES += $(wildcard $(SRC_DIR)/**/**/*.c)
+SRC_FILES += $(wildcard $(SRC_DIR)/**/**/**/*.c)
+SRC_FILES += $(wildcard $(SRC_DIR)/**/**/**/**/*.c)
+SRC_FILES += $(wildcard $(SRC_DIR)/**/**/**/**/**/*.c)
+
 
 #SRC_FILES += $(FREERTOS_DIR)/tasks.c
 #SRC_FILES += $(FREERTOS_DIR)/list.c

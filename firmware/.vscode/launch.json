@@ -8,8 +8,8 @@
       "args": [],
       "stopAtEntry": false,
       "externalConsole": true,
-      "cwd": "c:/Users/geert/Documents/GitHub/cnet-io/firmware/inc/libopencm3/lib/ethernet",
-      "program": "c:/Users/geert/Documents/GitHub/cnet-io/firmware/inc/libopencm3/lib/ethernet/build/Debug/outDebug",
+      "cwd": "c:/Users/geert/Documents/GitHub/cnet-io/firmware/src",
+      "program": "c:/Users/geert/Documents/GitHub/cnet-io/firmware/src/build/Debug/outDebug",
       "MIMode": "gdb",
       "miDebuggerPath": "gdb",
       "setupCommands": [

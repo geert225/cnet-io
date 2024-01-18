@@ -60,6 +60,9 @@
     "*.ejs": "html",
     "*.ishtm": "html",
     "stdbool.h": "c",
-    "stdint.h": "c"
+    "stdint.h": "c",
+    "gpio.h": "c",
+    "oled.h": "c",
+    "font.h": "c"
   }
 }

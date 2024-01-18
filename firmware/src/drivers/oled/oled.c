@@ -1,4 +1,5 @@
-#include <oled/oled.h>
+#include <drivers/oled/oled.h>
+#include <drivers/oled/font.h>
 #include <string.h>
 #include <core/clock.h>
 #include <libopencm3/stm32/gpio.h>
@@ -41,21 +42,21 @@ static uint8_t oledBuffer[OLED_BUFSIZE];
 #define OLED_OFFSET(x, y) (OLED_BUFSIZE - 1 - (x) - ((y) / 8) * OLED_WIDTH)
 #define OLED_MASK(x, y) (1 << (7 - (y) % 8))
 
-void oledDrawPixel(int x, int y) {
+void oled_draw_pixel(int x, int y) {
   if ((x < 0) || (y < 0) || (x >= OLED_WIDTH) || (y >= OLED_HEIGHT)) {
     return;
   }
   oledBuffer[OLED_OFFSET(x, y)] |= OLED_MASK(x, y);
 }
 
-void oledClearPixel(int x, int y) {
+void oled_clear_pixel(int x, int y) {
   if ((x < 0) || (y < 0) || (x >= OLED_WIDTH) || (y >= OLED_HEIGHT)) {
     return;
   }
   oledBuffer[OLED_OFFSET(x, y)] &= ~OLED_MASK(x, y);
 }
 
-void oledInvertPixel(int x, int y) {
+void oled_invert_pixel(int x, int y) {
   if ((x < 0) || (y < 0) || (x >= OLED_WIDTH) || (y >= OLED_HEIGHT)) {
     return;
   }
@@ -73,21 +74,20 @@ static inline void SPISend(uint32_t base, const uint8_t *data, int len) {
     ;
 }
 
-void oledFill() { 
+void oled_fill() { 
     memset(oledBuffer, 255, sizeof(oledBuffer));
 }
 
-void oledClear() { 
+void oled_clear() { 
     memset(oledBuffer, 0, sizeof(oledBuffer));
 }
 
-void oledFillPattern(uint8_t pattern) { 
+void oled_fill_pattern(uint8_t pattern) { 
     memset(oledBuffer, pattern, sizeof(oledBuffer));
 }
 
 
-void oledRefresh() {
-    uint8_t pageCount = (OLED_HEIGHT / 8);
+void oled_refresh() {
     for(int i = 0; i < 8; i++){
         uint8_t s[3] = {0xB0 +  i,
                     0x00 | 2,
@@ -106,7 +106,7 @@ void oledRefresh() {
     
 }
 
-void oledInit() {
+void oled_init() {
   static const uint8_t s[25] = {OLED_DISPLAYOFF,
                                 OLED_SETDISPLAYCLOCKDIV,
                                 0x80,
@@ -119,8 +119,8 @@ void oledInit() {
                                 0x14,
                                 OLED_MEMORYMODE,
                                 0x00,
-                                OLED_SEGREMAP | 0x01,
-                                OLED_COMSCANDEC,
+                                OLED_SEGREMAP | 0x00,
+                                OLED_COMSCANINC,
                                 OLED_SETCOMPINS,
                                 0x12,  // 128x64
                                 OLED_SETCONTRAST,
@@ -148,6 +148,50 @@ void oledInit() {
   SPISend(SPI_BASE, s, 25);
   gpio_set(OLED_CS_PORT, OLED_CS_PIN);  // SPI deselect
 
-  oledClear();
-  oledRefresh();
+  oled_clear();
+  oled_refresh();
+}
+
+int oled_write_char(char ch, int x, int y, FontDef_t* Font, uint8_t invert) {
+	uint32_t i, b, j;
+    invert &= 0x01;
+	
+	if (
+		OLED_WIDTH <= (x + Font->FontWidth) ||
+		OLED_HEIGHT <= (y + Font->FontHeight)
+	) {
+		return -1;
+	}
+	
+	/* Go through font */
+	for (i = 0; i < Font->FontHeight; i++) {
+		b = Font->data[(ch - 32) * Font->FontHeight + i];
+		for (j = 0; j < Font->FontWidth; j++) {
+			if ((b << j) & 0x8000) {
+                if (invert == 0x00){
+                    oled_draw_pixel(x + j, y + i);
+                }else{
+                    oled_clear_pixel(x + j, y + i);
+                }
+                
+			} else {
+				if (invert == 0x01){
+                    oled_draw_pixel(x + j, y + i);
+                }else{
+                    oled_clear_pixel(x + j, y + i);
+                }
+			}
+		}
+	}
+    return (x + Font->FontWidth);
+}
+
+void oled_write_string(const char *text, int x, int y, FontDef_t* Font, uint8_t invert){
+    int nextX = x;
+    for (; *text; text++) {
+        nextX = oled_write_char(*text, nextX, y, Font, invert);
+        if (nextX == - 1){
+            return;
+        }
+    }
 }
