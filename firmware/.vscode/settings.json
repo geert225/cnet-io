@@ -63,6 +63,8 @@
     "stdint.h": "c",
     "gpio.h": "c",
     "oled.h": "c",
-    "font.h": "c"
-  }
+    "font.h": "c",
+    "basicprotocol.h": "c"
+  },
+  "cSpell.enabled": false
 }

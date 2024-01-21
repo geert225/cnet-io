@@ -65,6 +65,7 @@
     "systick.h": "c",
     "rcc.h": "c",
     "system.h": "c",
-    "boardio.h": "c"
+    "boardio.h": "c",
+    "syscfg.h": "c"
   }
 }

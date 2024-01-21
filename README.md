@@ -9,8 +9,15 @@
 | item    | Progress |
 | :--------: | ------- |
 | **board design** | ![](https://geps.dev/progress/1?dangerColor=6488ea&warningColor=6488ea&successColor=6488ea) |
-| **firmware** | ![](https://geps.dev/progress/1?dangerColor=6488ea&warningColor=6488ea&successColor=6488ea) |
+| **firmware** | ![](https://geps.dev/progress/10?dangerColor=6488ea&warningColor=6488ea&successColor=6488ea) |
 | **doc** | ![](https://geps.dev/progress/0?dangerColor=6488ea&warningColor=6488ea&successColor=6488ea) |
+
+#### firmware status done:
+- first setup of a stm 32 dev board
+- first spi driver for oled screen
+- start with ethernet driver
+- free rtos setup (active)
+- profinet packet inspection
 
 ## todo list
 #### board:

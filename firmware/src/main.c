@@ -10,8 +10,8 @@
 #include <string.h>
 #include <drivers/oled/oled.h>
 #include <drivers/oled/font.h>
-#include <libopencm3/stm32/syscfg.h>
 #include <drivers/ethernet/mac.h>
+#include <drivers/ethernet/basicProtocol.h>
 
 #define PORT_SPI5 GPIOF 
 #define PIN_SPI5_SCK GPIO7
@@ -22,6 +22,11 @@
 #define PIN_DS 		GPIO5 
 #define PIN_CS 		GPIO6 
 #define PIN_RESET 	GPIO3 
+
+#define PORT_ENCODER GPIOD
+#define PIN_ENCODER_SWITCH GPIO5
+#define PIN_ENCODER_DT GPIO6
+#define PIN_ENCODER_CLK GPIO7
 
 //pc13 user button
 
@@ -52,7 +57,7 @@ static void build_header(uint8_t cnt){
 	oled_refresh();
 }
 
-static void build_text(uint8_t state, bool link){
+static void build_text(uint8_t state, uint16_t link){
 	for (int i = OLED_XSTART; i < OLED_WIDTH; i++)
 	{
 		for(int j = (OLED_YSTART + (OLED_HEIGHT / 4)) ; j <= OLED_HEIGHT; j++){
@@ -66,12 +71,12 @@ static void build_text(uint8_t state, bool link){
 		oled_write_string("Button off", OLED_XSTART + 1, OLED_YSTART + (OLED_HEIGHT / 4) + 5, &Font_11x18, 0);
 	}
 	char str[80];
-   	sprintf(str, "link: %d", link);
+   	sprintf(str, "enc: %d", link);
 	oled_write_string(str, OLED_XSTART + 1, OLED_YSTART + (OLED_HEIGHT / 4) + 25, &Font_11x18, 0);
 	oled_refresh();
 }
       
-#define SYSCFG_PMC_MII_RMII_SEL (0x1UL << (23U)) /*!< 0x00800000 */
+
 
 int main(void)
 {
@@ -79,23 +84,14 @@ int main(void)
 	uint64_t NextTime = 0;
 	uint64_t NextSend = 0;
 	uint64_t CheckTime = 0;
+	uint64_t ResetTime = 0;
 	system_setup();
-	rcc_periph_clock_enable(RCC_SYSCFG);
-	rcc_periph_clock_enable(RCC_GPIOA); // etehenet
-	rcc_periph_clock_enable(RCC_GPIOB); // user leds | etehenet
-	rcc_periph_clock_enable(RCC_GPIOC); // user button | etehenet
-	rcc_periph_clock_enable(RCC_GPIOE); // bits voor oled
-	rcc_periph_clock_enable(RCC_GPIOF); //port spi5
-	rcc_periph_clock_enable(RCC_GPIOG); //etehenet
-	rcc_periph_clock_enable(RCC_SPI5); // port voor spi display
-	rcc_periph_clock_enable(RCC_ETHMAC);
-	rcc_periph_clock_enable(RCC_ETHMACRX);
-	rcc_periph_clock_enable(RCC_ETHMACTX);
-	rcc_periph_clock_enable(RCC_DMA1);
-	rcc_periph_clock_enable(RCC_DMA2);
+	
 
 	gpio_mode_setup(GPIOB,GPIO_MODE_OUTPUT,GPIO_PUPD_NONE,GPIO7 | GPIO0 | GPIO14);
 	gpio_mode_setup(GPIOC,GPIO_MODE_INPUT,GPIO_PUPD_PULLDOWN,GPIO13);
+
+	gpio_mode_setup(PORT_ENCODER,GPIO_MODE_INPUT,GPIO_PUPD_PULLUP, PIN_ENCODER_CLK | PIN_ENCODER_DT | PIN_ENCODER_SWITCH);
 
 	//AF 11 = ethernet
 	gpio_mode_setup(GPIOA,GPIO_MODE_AF,GPIO_PUPD_PULLDOWN, GPIO1 | GPIO2 | GPIO7);
@@ -114,11 +110,27 @@ int main(void)
 	gpio_set_af(GPIOG, GPIO_AF11, GPIO11 | GPIO13);
 	gpio_set_output_options(GPIOG, GPIO_OTYPE_PP, GPIO_OSPEED_100MHZ, GPIO11 | GPIO13);
 
-	SYSCFG_PMC &= ~(SYSCFG_PMC_MII_RMII_SEL);
-	SYSCFG_PMC |= SYSCFG_PMC_MII_RMII_SEL;
+	
 
-	const uint8_t macAddr[6] = {
+	
+
+	uint8_t	packet[50] = {0};
+
+	messageHandler_t *ethHandle;	
+
+	macaddress_t deviceMac = {
 		0x5E,0x9A,0xBE,0x98,0xF8,0x22
+	};
+	
+	ethHandle = basic_protocol_handler_init(&deviceMac);
+
+	macaddress_t reqMac = {
+		0xFF,0xFF,0xFF,0xFF,0xFF,0xFF
+	};
+	bool hasReqMac = false;
+
+	const uint8_t macDest[6] = {
+		0xFF,0xFF,0xFF,0xFF,0xFF,0xFF
 	};
 
 	uint8_t arppacket[28] = {
@@ -130,12 +142,12 @@ int main(void)
 		0x04, //dest addr len
 		0x00, //operation type
 		0x01, //operation type
-		macAddr[0],
-		macAddr[1],
-		macAddr[2],
-		macAddr[3],
-		macAddr[4],
-		macAddr[5],
+		ethHandle->macAddress[0],
+		ethHandle->macAddress[1],
+		ethHandle->macAddress[2],
+		ethHandle->macAddress[3],
+		ethHandle->macAddress[4],
+		ethHandle->macAddress[5],
 		0x0a, //10
 		0x00, //0
 		0x0a, //10
@@ -152,41 +164,9 @@ int main(void)
 		0x18, //24
 	};
 
-	uint8_t	packet[50] = {0};
+	uint32_t packetLen = mac_build_packet(packet, macDest, deviceMac, arppacket, 0x0806, 28);
 
-	#define nTx * (cTx + sz) + nRx * (cRx + sz)
-
-	#define ETHBUG_EXT 1 //if 1 extedded used
-
-	#if ETHBUG_EXT == 1
-		#define ETHBUF_EXTDES 32
-	#else
-		#define ETHBUF_EXTDES 16
-	#endif
-
-	#define ETHBUF_NTX 4 //number of transmitor desciptors
-	#define ETHBUF_CTX 256 //size of transmitor desciptors
-	#define ETHBUF_NRX 4 //number of recive desciptors
-	#define ETHBUF_CRX 256 //size of recive desciptors
-
-	#define ETHBUF_SIZE ((ETHBUF_NTX * (ETHBUF_CTX + ETHBUF_EXTDES)) + (ETHBUF_NRX * (ETHBUF_CRX + ETHBUF_EXTDES)))
-
-
-	uint8_t ethbuf[ETHBUF_SIZE];
-
-	const uint8_t macDest[6] = {
-		0xFF,0xFF,0xFF,0xFF,0xFF,0xFF
-	};
-
-	uint32_t packetLen = mac_build_packet(packet, macDest, macAddr, arppacket, 0x0806, 28);
-
-	rcc_periph_reset_pulse(RST_ETHMAC);
-
-	eth_init(PHY0, ETH_CLK_025_035MHZ);
-	eth_desc_init(ethbuf,ETHBUF_NTX,ETHBUF_NRX,ETHBUF_CTX,ETHBUF_CRX,ETHBUG_EXT);
-	eth_set_mac(macAddr);
-	eth_enable_checksum_offload();
-	eth_start();
+	
 
 	//AF 5 = SPI
 	gpio_mode_setup(PORT_SPI5,GPIO_MODE_AF,GPIO_PUPD_NONE, PIN_SPI5_SCK | PIN_SPI5_MISO | PIN_SPI5_MOSI);
@@ -204,7 +184,8 @@ int main(void)
 	NextSend = system_get_ticks();
 	uint8_t lastState = 0x02;
 	uint8_t newState = 0x00;
-	bool lastLinkState = false;
+	uint16_t lastEncoderState = 0xFFFF;
+	uint16_t counter = 0;
 	bool messageSend = false;
 	CheckTime = system_get_ticks();
     while (1)
@@ -219,11 +200,27 @@ int main(void)
 			build_header(binCount);
 		} 
 
+
 		newState = gpio_port_read(GPIOC)>>13 & 1;
-		if(newState != lastState || phy_link_isup(PHY0) != lastLinkState){
+		if(newState != lastState || gpio_port_read(PORT_ENCODER) != lastEncoderState){
 			lastState = newState;
-			lastLinkState = phy_link_isup(PHY0);
-			build_text(newState, lastLinkState);
+			lastEncoderState = gpio_port_read(PORT_ENCODER);
+
+			if(system_get_ticks() > ResetTime){
+				uint16_t EncPort =  gpio_port_read(PORT_ENCODER);
+				uint16_t clk = (EncPort >> 7) & 1;
+				uint16_t dt = (EncPort >> 6) & 1;
+				uint16_t swtch = (EncPort >> 5) & 1;
+				if(clk == 0){
+					ResetTime = system_get_ticks() + 25;
+					if(dt == 0){
+						counter++;
+					}else{
+						counter--;
+					}
+				}
+			}
+			build_text(newState, counter);
 		};
 		
 		if(phy_link_isup(PHY0) && system_get_ticks() >= NextSend){

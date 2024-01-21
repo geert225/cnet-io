@@ -1,6 +1,6 @@
-#ifndef _CNETIO_ARP_
-#define _CNETIO_ARP_
+#include <drivers/ethernet/arp.h>
 
-#include <commendef.h>
 
-#endif
+int arp_request_eth_addr(){
+    int packetSize = 0;
+}
