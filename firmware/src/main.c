@@ -28,6 +28,8 @@
 #define PIN_ENCODER_DT GPIO6
 #define PIN_ENCODER_CLK GPIO7
 
+oledHandle_t oled1;
+
 //pc13 user button
 
 static void gpio_port_w_bit(uint32_t port, uint16_t pin, uint16_t value){
@@ -49,31 +51,31 @@ static void build_header(uint8_t cnt){
 	for (int i = OLED_XSTART; i < OLED_WIDTH; i++)
 	{
 		for(int j = OLED_YSTART; j <= OLED_HEIGHT / 4; j++){
-			oled_draw_pixel(i,j);
+			oled_draw_pixel(&oled1, i,j);
 		}
 		
 	}
-	oled_write_string(str, OLED_XSTART, OLED_YSTART + (OLED_HEIGHT / 8) - 4, &Font_7x10, 1);
-	oled_refresh();
+	oled_write_string(&oled1, str, OLED_XSTART, OLED_YSTART + (OLED_HEIGHT / 8) - 4, &Font_7x10, 1);
+	oled_refresh(&oled1);
 }
 
 static void build_text(uint8_t state, uint16_t link){
 	for (int i = OLED_XSTART; i < OLED_WIDTH; i++)
 	{
 		for(int j = (OLED_YSTART + (OLED_HEIGHT / 4)) ; j <= OLED_HEIGHT; j++){
-			oled_clear_pixel(i,j);
+			oled_clear_pixel(&oled1, i,j);
 		}
 		
 	}
 	if (state == 0x01){
-		oled_write_string("Button on", OLED_XSTART + 1, OLED_YSTART + (OLED_HEIGHT / 4) + 5, &Font_11x18, 0);
+		oled_write_string(&oled1, "Button on", OLED_XSTART + 1, OLED_YSTART + (OLED_HEIGHT / 4) + 5, &Font_11x18, 0);
 	}else{
-		oled_write_string("Button off", OLED_XSTART + 1, OLED_YSTART + (OLED_HEIGHT / 4) + 5, &Font_11x18, 0);
+		oled_write_string(&oled1, "Button off", OLED_XSTART + 1, OLED_YSTART + (OLED_HEIGHT / 4) + 5, &Font_11x18, 0);
 	}
 	char str[80];
    	sprintf(str, "enc: %d", link);
-	oled_write_string(str, OLED_XSTART + 1, OLED_YSTART + (OLED_HEIGHT / 4) + 25, &Font_11x18, 0);
-	oled_refresh();
+	oled_write_string(&oled1, str, OLED_XSTART + 1, OLED_YSTART + (OLED_HEIGHT / 4) + 25, &Font_11x18, 0);
+	oled_refresh(&oled1);
 }
       
 
@@ -109,11 +111,7 @@ int main(void)
 	gpio_mode_setup(GPIOG,GPIO_MODE_AF,GPIO_PUPD_PULLDOWN, GPIO11 | GPIO13);
 	gpio_set_af(GPIOG, GPIO_AF11, GPIO11 | GPIO13);
 	gpio_set_output_options(GPIOG, GPIO_OTYPE_PP, GPIO_OSPEED_100MHZ, GPIO11 | GPIO13);
-
 	
-
-	
-
 	uint8_t	packet[50] = {0};
 
 	messageHandler_t *ethHandle;	
@@ -168,17 +166,8 @@ int main(void)
 
 	
 
-	//AF 5 = SPI
-	gpio_mode_setup(PORT_SPI5,GPIO_MODE_AF,GPIO_PUPD_NONE, PIN_SPI5_SCK | PIN_SPI5_MISO | PIN_SPI5_MOSI);
-	gpio_mode_setup(PORT_OLED,GPIO_MODE_OUTPUT,GPIO_PUPD_NONE,PIN_DS | PIN_CS | PIN_RESET);
-	gpio_set_af(PORT_SPI5, GPIO_AF5, PIN_SPI5_SCK | PIN_SPI5_MISO | PIN_SPI5_MOSI);
-	
-	spi_init_master(SPI5, SPI_CR1_BAUDRATE_FPCLK_DIV_8, SPI_CR1_CPOL_CLK_TO_0_WHEN_IDLE, SPI_CR1_CPHA_CLK_TRANSITION_1, SPI_CR1_DFF_8BIT, SPI_CR1_MSBFIRST);
-	spi_enable_ss_output(SPI5);
-	spi_enable(SPI5);
-
-	oled_init();	
-	oled_refresh();
+	oled_init(&oled1, SPI5, PIN_SPI5_MOSI, PIN_SPI5_SCK, PIN_CS, PIN_DS, PIN_RESET, PORT_SPI5, PORT_SPI5, PORT_OLED, PORT_OLED, PORT_OLED);	
+	oled_refresh(&oled1);
 
 	NextTime = system_get_ticks();
 	NextSend = system_get_ticks();

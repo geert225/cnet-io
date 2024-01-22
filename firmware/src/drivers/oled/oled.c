@@ -37,33 +37,31 @@
 #define OLED_SEGREMAP 0xA0
 #define OLED_CHARGEPUMP 0x8D
 
-static uint8_t oledBuffer[OLED_BUFSIZE];
-
 #define OLED_OFFSET(x, y) (OLED_BUFSIZE - 1 - (x) - ((y) / 8) * OLED_WIDTH)
 #define OLED_MASK(x, y) (1 << (7 - (y) % 8))
 
-void oled_draw_pixel(int x, int y) {
+void oled_draw_pixel(oledHandle_t * handle, int x, int y) {
   if ((x < 0) || (y < 0) || (x >= OLED_WIDTH) || (y >= OLED_HEIGHT)) {
     return;
   }
-  oledBuffer[OLED_OFFSET(x, y)] |= OLED_MASK(x, y);
+  handle->dataBuffer[OLED_OFFSET(x, y)] |= OLED_MASK(x, y);
 }
 
-void oled_clear_pixel(int x, int y) {
+void oled_clear_pixel(oledHandle_t * handle, int x, int y) {
   if ((x < 0) || (y < 0) || (x >= OLED_WIDTH) || (y >= OLED_HEIGHT)) {
     return;
   }
-  oledBuffer[OLED_OFFSET(x, y)] &= ~OLED_MASK(x, y);
+  handle->dataBuffer[OLED_OFFSET(x, y)] &= ~OLED_MASK(x, y);
 }
 
-void oled_invert_pixel(int x, int y) {
+void oled_invert_pixel(oledHandle_t * handle, int x, int y) {
   if ((x < 0) || (y < 0) || (x >= OLED_WIDTH) || (y >= OLED_HEIGHT)) {
     return;
   }
-  oledBuffer[OLED_OFFSET(x, y)] ^= OLED_MASK(x, y);
+  handle->dataBuffer[OLED_OFFSET(x, y)] ^= OLED_MASK(x, y);
 }
 
-static inline void SPISend(uint32_t base, const uint8_t *data, int len) {
+static inline void oled_spi_send(uint32_t base, const uint8_t *data, int len) {
   system_delay(1);
   for (int i = 0; i < len; i++) {
     spi_send(base, data[i]);
@@ -74,39 +72,65 @@ static inline void SPISend(uint32_t base, const uint8_t *data, int len) {
     ;
 }
 
-void oled_fill() { 
-    memset(oledBuffer, 255, sizeof(oledBuffer));
+void oled_fill(oledHandle_t * handle) { 
+    memset(handle->dataBuffer, 255, sizeof(handle->dataBuffer));
 }
 
-void oled_clear() { 
-    memset(oledBuffer, 0, sizeof(oledBuffer));
+void oled_clear(oledHandle_t * handle) { 
+    memset(handle->dataBuffer, 0, sizeof(handle->dataBuffer));
 }
 
-void oled_fill_pattern(uint8_t pattern) { 
-    memset(oledBuffer, pattern, sizeof(oledBuffer));
+void oled_fill_pattern(oledHandle_t * handle, uint8_t pattern) { 
+    memset(handle->dataBuffer, pattern, sizeof(handle->dataBuffer));
 }
 
 
-void oled_refresh() {
+void oled_refresh(oledHandle_t * handle) {
     for(int i = 0; i < 8; i++){
         uint8_t s[3] = {0xB0 +  i,
                     0x00 | 2,
                     0x10};
+        gpio_clear(handle->chipSelectPort, handle->chipSelectPin);  // SPI select
+        oled_spi_send(handle->spiPeriph, s, 3);
+        gpio_set(handle->chipSelectPort, handle->chipSelectPin);  // SPI deselect
 
-        gpio_clear(OLED_CS_PORT, OLED_CS_PIN);  // SPI select
-        SPISend(SPI_BASE, s, 3);
-        gpio_set(OLED_CS_PORT, OLED_CS_PIN);  // SPI deselect
-
-        gpio_set(OLED_DC_PORT, OLED_DC_PIN);    // set to DATA
-        gpio_clear(OLED_CS_PORT, OLED_CS_PIN);  // SPI select
-        SPISend(SPI_BASE, &oledBuffer[OLED_WIDTH * i], OLED_WIDTH);
-        gpio_set(OLED_CS_PORT, OLED_CS_PIN);    // SPI deselect
-        gpio_clear(OLED_DC_PORT, OLED_DC_PIN);  // set to CMD
+        gpio_set(handle->datatypePort, handle->dataTypePin);    // set to DATA
+        gpio_clear(handle->chipSelectPort, handle->chipSelectPin);  // SPI select
+        oled_spi_send(handle->spiPeriph, &handle->dataBuffer[OLED_WIDTH * i], OLED_WIDTH);
+        gpio_set(handle->chipSelectPort, handle->chipSelectPin);    // SPI deselect
+        gpio_clear(handle->datatypePort, handle->dataTypePin);  // set to CMD
     }
-    
 }
 
-void oled_init() {
+void oled_init(oledHandle_t * handle, uint32_t spiPeriph, uint16_t mosiPin, uint16_t sckPin, uint16_t chipSelectPin, uint16_t dataTypePin, uint16_t resetPin, uint32_t mosiPort, uint32_t sckPort, uint32_t chipSelectPort, uint32_t datatypePort, uint32_t resetPort) {
+  handle->spiPeriph = spiPeriph;
+  handle->mosiPin = mosiPin;
+  handle->sckPin = sckPin;
+  handle->chipSelectPin = chipSelectPin;
+  handle->dataTypePin = dataTypePin;
+  handle->resetPin = resetPin;
+  handle->mosiPort = mosiPort;
+  handle->sckPort = sckPort;
+  handle->chipSelectPort = chipSelectPort;
+  handle->datatypePort = datatypePort;
+  handle->resetPort = resetPort;
+  memset(handle->dataBuffer, 0, sizeof(handle->dataBuffer));
+
+  gpio_mode_setup(handle->mosiPort,GPIO_MODE_AF,GPIO_PUPD_NONE, handle->mosiPin);
+  gpio_set_af(handle->mosiPort, GPIO_AF5, handle->mosiPin);
+  gpio_mode_setup(handle->sckPort,GPIO_MODE_AF,GPIO_PUPD_NONE, handle->sckPin);
+  gpio_set_af(handle->sckPort, GPIO_AF5, handle->sckPin);
+
+	gpio_mode_setup(handle->chipSelectPort,GPIO_MODE_OUTPUT,GPIO_PUPD_NONE,handle->chipSelectPin);
+  gpio_mode_setup(handle->datatypePort,GPIO_MODE_OUTPUT,GPIO_PUPD_NONE,handle->dataTypePin);
+  gpio_mode_setup(handle->resetPort,GPIO_MODE_OUTPUT,GPIO_PUPD_NONE,handle->resetPin);
+
+  spi_init_master(handle->spiPeriph, SPI_CR1_BAUDRATE_FPCLK_DIV_8, SPI_CR1_CPOL_CLK_TO_0_WHEN_IDLE, SPI_CR1_CPHA_CLK_TRANSITION_1, SPI_CR1_DFF_8BIT, SPI_CR1_MSBFIRST);
+	spi_enable_ss_output(handle->spiPeriph);
+	spi_enable(handle->spiPeriph);
+  system_delay(1);
+
+  //init structure for display
   static const uint8_t s[25] = {OLED_DISPLAYOFF,
                                 OLED_SETDISPLAYCLOCKDIV,
                                 0x80,
@@ -133,26 +157,24 @@ void oled_init() {
                                 OLED_NORMALDISPLAY,
                                 OLED_DISPLAYON};
 
-  gpio_clear(OLED_DC_PORT, OLED_DC_PIN);  // set to CMD
-  gpio_set(OLED_CS_PORT, OLED_CS_PIN);    // SPI deselect
+  gpio_clear(handle->datatypePort, handle->dataTypePin);  // set to CMD
+  gpio_set(handle->chipSelectPort, handle->chipSelectPin);    // SPI deselect
 
   // Reset the LCD
-  gpio_set(OLED_RST_PORT, OLED_RST_PIN);
+  gpio_set(handle->resetPort, handle->resetPin);
   system_delay(40);
-  gpio_clear(OLED_RST_PORT, OLED_RST_PIN);
+  gpio_clear(handle->resetPort, handle->resetPin);
   system_delay(400);
-  gpio_set(OLED_RST_PORT, OLED_RST_PIN);
+  gpio_set(handle->resetPort, handle->resetPin);
 
   // init
-  gpio_clear(OLED_CS_PORT, OLED_CS_PIN);  // SPI select
-  SPISend(SPI_BASE, s, 25);
-  gpio_set(OLED_CS_PORT, OLED_CS_PIN);  // SPI deselect
-
-  oled_clear();
-  oled_refresh();
+  gpio_clear(handle->chipSelectPort, handle->chipSelectPin);  // SPI select
+  oled_spi_send(handle->spiPeriph, s, 25);
+  gpio_set(handle->chipSelectPort, handle->chipSelectPin);  // SPI deselect
+  oled_refresh(handle);
 }
 
-int oled_write_char(char ch, int x, int y, FontDef_t* Font, uint8_t invert) {
+int oled_write_char(oledHandle_t * handle, char ch, int x, int y, FontDef_t* Font, uint8_t invert) {
 	uint32_t i, b, j;
     invert &= 0x01;
 	
@@ -169,16 +191,16 @@ int oled_write_char(char ch, int x, int y, FontDef_t* Font, uint8_t invert) {
 		for (j = 0; j < Font->FontWidth; j++) {
 			if ((b << j) & 0x8000) {
                 if (invert == 0x00){
-                    oled_draw_pixel(x + j, y + i);
+                    oled_draw_pixel(handle, x + j, y + i);
                 }else{
-                    oled_clear_pixel(x + j, y + i);
+                    oled_clear_pixel(handle, x + j, y + i);
                 }
                 
 			} else {
 				if (invert == 0x01){
-                    oled_draw_pixel(x + j, y + i);
+                    oled_draw_pixel(handle, x + j, y + i);
                 }else{
-                    oled_clear_pixel(x + j, y + i);
+                    oled_clear_pixel(handle, x + j, y + i);
                 }
 			}
 		}
@@ -186,10 +208,10 @@ int oled_write_char(char ch, int x, int y, FontDef_t* Font, uint8_t invert) {
     return (x + Font->FontWidth);
 }
 
-void oled_write_string(const char *text, int x, int y, FontDef_t* Font, uint8_t invert){
+void oled_write_string(oledHandle_t * handle, const char *text, int x, int y, FontDef_t* Font, uint8_t invert){
     int nextX = x;
     for (; *text; text++) {
-        nextX = oled_write_char(*text, nextX, y, Font, invert);
+        nextX = oled_write_char(handle, *text, nextX, y, Font, invert);
         if (nextX == - 1){
             return;
         }
