@@ -12,6 +12,9 @@
 #include <drivers/oled/font.h>
 #include <drivers/ethernet/mac.h>
 #include <drivers/ethernet/basicProtocol.h>
+#include <drivers/gpio/gpio.h>
+#include <drivers/tm1637/tm1637.h>
+#include <libopencm3/cm3/nvic.h>
 
 #define PORT_SPI5 GPIOF 
 #define PIN_SPI5_SCK GPIO7
@@ -29,19 +32,7 @@
 #define PIN_ENCODER_CLK GPIO7
 
 oledHandle_t oled1;
-
-//pc13 user button
-
-static void gpio_port_w_bit(uint32_t port, uint16_t pin, uint16_t value){
-	uint16_t portData = gpio_port_read(port);
-	value = value & 1;
-	if (value == 1){
-		portData = portData | pin;
-	}else{
-		portData = portData & ~(pin);
-	}
-	gpio_port_write(port, portData);
-}
+tm1637Handle_t tm1637;
 
 static void build_header(uint8_t cnt){
 	char str[80];
@@ -77,8 +68,7 @@ static void build_text(uint8_t state, uint16_t link){
 	oled_write_string(&oled1, str, OLED_XSTART + 1, OLED_YSTART + (OLED_HEIGHT / 4) + 25, &Font_11x18, 0);
 	oled_refresh(&oled1);
 }
-      
-
+    
 
 int main(void)
 {
@@ -88,7 +78,6 @@ int main(void)
 	uint64_t CheckTime = 0;
 	uint64_t ResetTime = 0;
 	system_setup();
-	
 
 	gpio_mode_setup(GPIOB,GPIO_MODE_OUTPUT,GPIO_PUPD_NONE,GPIO7 | GPIO0 | GPIO14);
 	gpio_mode_setup(GPIOC,GPIO_MODE_INPUT,GPIO_PUPD_PULLDOWN,GPIO13);
@@ -169,6 +158,10 @@ int main(void)
 	oled_init(&oled1, SPI5, PIN_SPI5_MOSI, PIN_SPI5_SCK, PIN_CS, PIN_DS, PIN_RESET, PORT_SPI5, PORT_SPI5, PORT_OLED, PORT_OLED, PORT_OLED);	
 	oled_refresh(&oled1);
 
+	tm1637_init(&tm1637, GPIO9, GPIO8, GPIOC, GPIOC);
+	//tm1637_refresh(&tm1637);
+	//tm1637_display_on(&tm1637);
+
 	NextTime = system_get_ticks();
 	NextSend = system_get_ticks();
 	uint8_t lastState = 0x02;
@@ -179,14 +172,14 @@ int main(void)
 	CheckTime = system_get_ticks();
     while (1)
 	{
-		
+		tm1637_refresh(&tm1637);
 		if (system_get_ticks() >= NextTime){
 			NextTime = system_get_ticks() + 750;
 			binCount++;
 			if(binCount > 7){
 				binCount = 0;
 			}
-			build_header(binCount);
+			//build_header(binCount);
 		} 
 
 
@@ -232,10 +225,9 @@ int main(void)
 			}
 		*/
 		
-
-		gpio_port_w_bit(GPIOB, GPIO0, ((binCount) & 1));
-		gpio_port_w_bit(GPIOB, GPIO7, ((binCount >> 1) & 1));
-		gpio_port_w_bit(GPIOB, GPIO14, ((binCount >> 2) & 1));		
+		gpio_write_bit(GPIOB, GPIO0, ((binCount) & 1));
+		gpio_write_bit(GPIOB, GPIO7, ((binCount >> 1) & 1));
+		gpio_write_bit(GPIOB, GPIO14, ((binCount >> 2) & 1));		
 	}
 	return 0;
 }

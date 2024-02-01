@@ -5,14 +5,6 @@
 #include <libopencm3/stm32/gpio.h>
 #include <libopencm3/stm32/spi.h>
 
-#define SPI_BASE SPI5
-#define OLED_DC_PORT GPIOE
-#define OLED_DC_PIN GPIO5  // PB0 | Data/Command
-#define OLED_CS_PORT GPIOE
-#define OLED_CS_PIN GPIO6  // PA4 | SPI Select
-#define OLED_RST_PORT GPIOE
-#define OLED_RST_PIN GPIO3  // PB1 | Reset display
-
 #define OLED_SETCONTRAST 0x81
 #define OLED_DISPLAYALLON_RESUME 0xA4
 #define OLED_DISPLAYALLON 0xA5
@@ -73,15 +65,15 @@ static inline void oled_spi_send(uint32_t base, const uint8_t *data, int len) {
 }
 
 void oled_fill(oledHandle_t * handle) { 
-    memset(handle->dataBuffer, 255, sizeof(handle->dataBuffer));
+    memset(handle->dataBuffer, 255, sizeof(handle->dataBuffer) / sizeof(handle->dataBuffer[0]));
 }
 
 void oled_clear(oledHandle_t * handle) { 
-    memset(handle->dataBuffer, 0, sizeof(handle->dataBuffer));
+    memset(handle->dataBuffer, 0, sizeof(handle->dataBuffer) / sizeof(handle->dataBuffer[0]));
 }
 
 void oled_fill_pattern(oledHandle_t * handle, uint8_t pattern) { 
-    memset(handle->dataBuffer, pattern, sizeof(handle->dataBuffer));
+    memset(handle->dataBuffer, pattern, sizeof(handle->dataBuffer) / sizeof(handle->dataBuffer[0]));
 }
 
 
@@ -114,7 +106,7 @@ void oled_init(oledHandle_t * handle, uint32_t spiPeriph, uint16_t mosiPin, uint
   handle->chipSelectPort = chipSelectPort;
   handle->datatypePort = datatypePort;
   handle->resetPort = resetPort;
-  memset(handle->dataBuffer, 0, sizeof(handle->dataBuffer));
+  memset(handle->dataBuffer, 0, sizeof(handle->dataBuffer) / sizeof(handle->dataBuffer[0]));
 
   gpio_mode_setup(handle->mosiPort,GPIO_MODE_AF,GPIO_PUPD_NONE, handle->mosiPin);
   gpio_set_af(handle->mosiPort, GPIO_AF5, handle->mosiPin);
@@ -128,7 +120,6 @@ void oled_init(oledHandle_t * handle, uint32_t spiPeriph, uint16_t mosiPin, uint
   spi_init_master(handle->spiPeriph, SPI_CR1_BAUDRATE_FPCLK_DIV_8, SPI_CR1_CPOL_CLK_TO_0_WHEN_IDLE, SPI_CR1_CPHA_CLK_TRANSITION_1, SPI_CR1_DFF_8BIT, SPI_CR1_MSBFIRST);
 	spi_enable_ss_output(handle->spiPeriph);
 	spi_enable(handle->spiPeriph);
-  system_delay(1);
 
   //init structure for display
   static const uint8_t s[25] = {OLED_DISPLAYOFF,
@@ -148,7 +139,8 @@ void oled_init(oledHandle_t * handle, uint32_t spiPeriph, uint16_t mosiPin, uint
                                 OLED_SETCOMPINS,
                                 0x12,  // 128x64
                                 OLED_SETCONTRAST,
-                                0xCF,
+                                //0xCF,
+                                0x02,
                                 OLED_SETPRECHARGE,
                                 0xF1,
                                 OLED_SETVCOMDETECT,
